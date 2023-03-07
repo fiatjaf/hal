@@ -115,10 +115,10 @@ fn exec_verify<'a>(matches: &clap::ArgMatches<'a>) {
 	if sig_bytes.len() != 65 {
 		panic!("Invalid signature: length is {} instead of 65 bytes", sig_bytes.len());
 	}
-	let recid = secp256k1::recovery::RecoveryId::from_i32(((sig_bytes[0] - 27) & 0x03) as i32)
+	let recid = secp256k1::ecdsa::RecoveryId::from_i32(((sig_bytes[0] - 27) & 0x03) as i32)
 		.expect("invalid recoverable signature (invalid recid)");
 	let compressed = ((sig_bytes[0] - 27) & 0x04) != 0;
-	let signature = secp256k1::recovery::RecoverableSignature::from_compact(&sig_bytes[1..], recid)
+	let signature = secp256k1::ecdsa::RecoverableSignature::from_compact(&sig_bytes[1..], recid)
 		.expect("invalid recoverable signature");
 
 	let msg = util::arg_or_stdin(matches, "message");
@@ -126,10 +126,10 @@ fn exec_verify<'a>(matches: &clap::ArgMatches<'a>) {
 
 	let secp = secp256k1::Secp256k1::verification_only();
 	let pubkey = PublicKey {
-		key: secp
+		inner: secp
 			.recover(&secp256k1::Message::from_slice(&hash).unwrap(), &signature)
 			.expect("invalid signature"),
-		compressed: compressed,
+		compressed,
 	};
 
 	let network = cmd::network(matches);
@@ -188,10 +188,10 @@ fn exec_recover<'a>(matches: &clap::ArgMatches<'a>) {
 	if sig_bytes.len() != 65 {
 		panic!("Invalid signature: length is {} instead of 65 bytes", sig_bytes.len());
 	}
-	let recid = secp256k1::recovery::RecoveryId::from_i32((sig_bytes[0] - 27 & 0x03) as i32)
+	let recid = secp256k1::ecdsa::RecoveryId::from_i32((sig_bytes[0] - 27 & 0x03) as i32)
 		.expect("invalid recoverable signature (invalid recid)");
 	let compressed = sig_bytes[0] & 0x04 != 0x04;
-	let signature = secp256k1::recovery::RecoverableSignature::from_compact(&sig_bytes[1..], recid)
+	let signature = secp256k1::ecdsa::RecoverableSignature::from_compact(&sig_bytes[1..], recid)
 		.expect("invalid recoverable signature");
 
 	let msg = matches.value_of("message").expect("no message given");
@@ -203,8 +203,8 @@ fn exec_recover<'a>(matches: &clap::ArgMatches<'a>) {
 		.expect("invalid signature");
 
 	let bitcoin_key = PublicKey {
-		key: pubkey,
-		compressed: compressed,
+		inner: pubkey,
+		compressed,
 	};
 	let info = hal::GetInfo::get_info(&bitcoin_key, cmd::network(matches));
 	cmd::print_output(matches, &info)

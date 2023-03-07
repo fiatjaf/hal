@@ -50,7 +50,7 @@ fn exec_generate<'a>(matches: &clap::ArgMatches<'a>) {
 	let privkey = bitcoin::PrivateKey {
 		compressed: true,
 		network,
-		key: secret_key,
+		inner: secret_key,
 	};
 	let pubkey = privkey.public_key(&secp);
 
@@ -91,7 +91,7 @@ fn exec_derive<'a>(matches: &clap::ArgMatches<'a>) {
 	let privkey = bitcoin::PrivateKey {
 		compressed: true,
 		network,
-		key: secret_key,
+		inner: secret_key,
 	};
 	let pubkey = privkey.public_key(&secp);
 
@@ -137,7 +137,7 @@ fn exec_inspect<'a>(matches: &clap::ArgMatches<'a>) {
 		let pubkey = secp256k1::PublicKey::from_secret_key(&secp256k1::Secp256k1::new(), &sk);
 		let btc_pubkey = PublicKey {
 			compressed: true,
-			key: pubkey.clone(),
+			inner: pubkey.clone(),
 		};
 		let network = cmd::network(matches);
 		hal::key::KeyInfo {
@@ -146,7 +146,7 @@ fn exec_inspect<'a>(matches: &clap::ArgMatches<'a>) {
 			public_key: btc_pubkey,
 			uncompressed_public_key: PublicKey {
 				compressed: false,
-				key: pubkey,
+				inner: pubkey,
 			},
 			addresses: hal::address::Addresses::from_pubkey(&btc_pubkey, network),
 		}
@@ -226,9 +226,9 @@ fn exec_verify<'a>(matches: &clap::ArgMatches<'a>) {
 		let hex = matches.value_of("signature").expect("no signature provided");
 		let bytes = hex::decode(&hex).expect("invalid signature: not hex");
 		if bytes.len() == 64 {
-			secp256k1::Signature::from_compact(&bytes).expect("invalid signature")
+			secp256k1::ecdsa::Signature::from_compact(&bytes).expect("invalid signature")
 		} else {
-			secp256k1::Signature::from_der(&bytes).expect("invalid DER signature")
+			secp256k1::ecdsa::Signature::from_der(&bytes).expect("invalid DER signature")
 		}
 	};
 

@@ -83,9 +83,8 @@ Example format:
 
 /// Check both ways to specify the outpoint and panic if conflicting.
 fn outpoint_from_input_info(input: &InputInfo) -> OutPoint {
-	let prevout: Option<OutPoint> = input.prevout.as_ref().map(
-		|ref op| op.parse().expect("invalid prevout format")
-	);
+	let prevout: Option<OutPoint> =
+		input.prevout.as_ref().map(|ref op| op.parse().expect("invalid prevout format"));
 	let txid = input.txid;
 	let vout = input.vout;
 
@@ -116,11 +115,11 @@ fn create_input(input: InputInfo) -> TxIn {
 	TxIn {
 		previous_output: outpoint_from_input_info(&input),
 		script_sig: input.script_sig.map(create_script_sig).unwrap_or_default(),
-		sequence: input.sequence.unwrap_or_default(),
-		witness: match input.witness {
+		sequence: bitcoin::Sequence(input.sequence.unwrap_or_default()),
+		witness: bitcoin::Witness::from_vec(match input.witness {
 			Some(ref w) => w.iter().map(|h| h.clone().0).collect(),
 			None => Vec::new(),
-		},
+		}),
 	}
 }
 
@@ -195,7 +194,7 @@ pub fn create_transaction(info: TransactionInfo) -> Transaction {
 
 	Transaction {
 		version: info.version.expect("Field \"version\" is required."),
-		lock_time: info.locktime.expect("Field \"locktime\" is required."),
+		lock_time: bitcoin::PackedLockTime(info.locktime.expect("Field \"locktime\" is required.")),
 		input: info
 			.inputs
 			.expect("Field \"inputs\" is required.")

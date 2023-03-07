@@ -49,7 +49,7 @@ impl Addresses {
 
 	pub fn from_script(script: &Script, network: Network) -> Addresses {
 		Addresses {
-			p2sh: Some(Address::p2sh(&script, network)),
+			p2sh: Some(Address::p2sh(&script, network).unwrap()),
 			p2wsh: Some(Address::p2wsh(&script, network)),
 			p2shwsh: Some(Address::p2shwsh(&script, network)),
 			..Default::default()

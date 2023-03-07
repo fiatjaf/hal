@@ -5,7 +5,6 @@ extern crate chrono;
 extern crate hex;
 extern crate lightning_invoice;
 extern crate miniscript as miniscriptlib;
-extern crate secp256k1;
 extern crate serde;
 
 pub mod address;

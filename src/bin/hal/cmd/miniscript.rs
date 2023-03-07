@@ -7,7 +7,7 @@ use hal::miniscript::{
 use miniscript::descriptor::Descriptor;
 use miniscript::miniscript::{BareCtx, Legacy, Miniscript, Segwitv0};
 use miniscript::policy::Liftable;
-use miniscript::{policy, DescriptorTrait, MiniscriptKey};
+use miniscript::{policy, MiniscriptKey};
 
 use cmd;
 use util;
@@ -49,7 +49,7 @@ fn exec_descriptor<'a>(matches: &clap::ArgMatches<'a>) {
 			address: desc.address(network).map(|a| a.to_string()).ok(),
 			script_pubkey: Some(desc.script_pubkey().into_bytes().into()),
 			unsigned_script_sig: Some(desc.unsigned_script_sig().into_bytes().into()),
-			witness_script: Some(desc.explicit_script().into_bytes().into()),
+			witness_script: Some(desc.explicit_script().unwrap().into_bytes().into()),
 			max_satisfaction_weight: desc.max_satisfaction_weight().ok(),
 			policy: policy::Liftable::lift(&desc).map(|pol| pol.to_string()).ok(),
 		})
@@ -123,8 +123,7 @@ fn exec_inspect<'a>(matches: &clap::ArgMatches<'a>) {
 		MiniscriptInfo::combine(MiniscriptInfo::combine(bare_info, p2sh_info), segwit_info)
 			.expect("Invalid Miniscript")
 	} else {
-		MiniscriptInfo::combine(MiniscriptInfo::combine(bare_info, p2sh_info), segwit_info)
-			.unwrap()
+		MiniscriptInfo::combine(MiniscriptInfo::combine(bare_info, p2sh_info), segwit_info).unwrap()
 	};
 	cmd::print_output(matches, &info);
 }
@@ -177,8 +176,14 @@ fn get_policy_info<Pk: MiniscriptKey>(
 ) -> Result<PolicyInfo, miniscript::Error>
 where
 	Pk: std::str::FromStr,
-	Pk::Hash: std::str::FromStr,
-	<<Pk as miniscript::MiniscriptKey>::Hash as ::std::str::FromStr>::Err: ::std::fmt::Display,
+	Pk::Hash160: std::str::FromStr,
+	Pk::Sha256: std::str::FromStr,
+	Pk::Hash256: std::str::FromStr,
+	Pk::Ripemd160: std::str::FromStr,
+	<<Pk as miniscript::MiniscriptKey>::Hash160 as ::std::str::FromStr>::Err: ::std::fmt::Display,
+	<<Pk as miniscript::MiniscriptKey>::Hash256 as ::std::str::FromStr>::Err: ::std::fmt::Display,
+	<<Pk as miniscript::MiniscriptKey>::Sha256 as ::std::str::FromStr>::Err: ::std::fmt::Display,
+	<<Pk as miniscript::MiniscriptKey>::Ripemd160 as ::std::str::FromStr>::Err: ::std::fmt::Display,
 	<Pk as ::std::str::FromStr>::Err: ::std::fmt::Display,
 {
 	let concrete_pol: Option<policy::Concrete<Pk>> = policy_str.parse().ok();
@@ -188,12 +193,12 @@ where
 	};
 	Ok(PolicyInfo {
 		is_concrete: concrete_pol.is_some(),
-		key_type: key_type,
+		key_type,
 		is_trivial: policy.is_trivial(),
 		is_unsatisfiable: policy.is_unsatisfiable(),
 		relative_timelocks: policy.relative_timelocks(),
 		n_keys: policy.n_keys(),
-		minimum_n_keys: policy.minimum_n_keys(),
+		minimum_n_keys: policy.minimum_n_keys().unwrap(),
 		sorted: policy.clone().sorted().to_string(),
 		normalized: policy.clone().normalized().to_string(),
 		miniscript: concrete_pol.map(|p| Miniscripts {
@@ -266,7 +271,7 @@ impl FromScriptContexts for MiniscriptInfo {
 		script: Option<bitcoin::Script>,
 	) -> Self {
 		Self {
-			key_type: key_type,
+			key_type,
 			valid_script_contexts: ScriptContexts::from_bare(true),
 			script_size: ms.script_size(),
 			max_satisfaction_witness_elements: ms.max_satisfaction_witness_elements().ok(),
@@ -295,7 +300,7 @@ impl FromScriptContexts for MiniscriptInfo {
 		script: Option<bitcoin::Script>,
 	) -> Self {
 		Self {
-			key_type: key_type,
+			key_type,
 			valid_script_contexts: ScriptContexts::from_p2sh(true),
 			script_size: ms.script_size(),
 			max_satisfaction_witness_elements: ms.max_satisfaction_witness_elements().ok(),
@@ -324,7 +329,7 @@ impl FromScriptContexts for MiniscriptInfo {
 		script: Option<bitcoin::Script>,
 	) -> Self {
 		Self {
-			key_type: key_type,
+			key_type,
 			valid_script_contexts: ScriptContexts::from_segwitv0(true),
 			script_size: ms.script_size(),
 			max_satisfaction_witness_elements: ms.max_satisfaction_witness_elements().ok(),
@@ -375,11 +380,14 @@ impl FromScriptContexts for MiniscriptInfo {
 					script: a.script,
 					policy: a.policy.or(b.policy),
 					requires_sig: a.requires_sig,
-					non_malleable: ScriptContexts::or(a.non_malleable,b.non_malleable),
-					within_resource_limits: ScriptContexts::or(a.within_resource_limits,b.within_resource_limits),
+					non_malleable: ScriptContexts::or(a.non_malleable, b.non_malleable),
+					within_resource_limits: ScriptContexts::or(
+						a.within_resource_limits,
+						b.within_resource_limits,
+					),
 					has_mixed_timelocks: a.has_mixed_timelocks,
 					has_repeated_keys: b.has_repeated_keys,
-					sane_miniscript: ScriptContexts::or(a.sane_miniscript,b.sane_miniscript),
+					sane_miniscript: ScriptContexts::or(a.sane_miniscript, b.sane_miniscript),
 				})
 			}
 		}
